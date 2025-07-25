@@ -1,0 +1,131 @@
+
+<!-- Full HTML Code -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <title>ECET Attendance Tracker</title>
+  <style>
+    body { font-family: Arial; padding: 1rem; }
+    .hidden { display: none; }
+    .role-section, .attendance-section, .summary-section { margin-bottom: 2rem; }
+    table, th, td { border: 1px solid black; border-collapse: collapse; padding: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Eluru College Attendance Tracker</h1>
+  <div class="role-section">
+    <label>Select Role:
+      <select id="roleSelect" onchange="changeRole()">
+        <option value="leader">Class Leader</option>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+      </select>
+    </label>
+    <br />
+    <label>Student ID: <input type="text" id="studentId" placeholder="e.g. 1234" /></label>
+    <button onclick="loadStudentView()">View Summary</button>
+  </div>
+
+  <div class="attendance-section" id="attendanceInput">
+    <label>Date: <input type="date" id="attendanceDate" /></label>
+    <label>Hour:
+      <select id="hourSelect">
+        <option value="1">09:30 - 10:30</option>
+        <option value="2">10:30 - 11:30</option>
+        <option value="3">11:30 - 12:30</option>
+        <option value="4">01:20 - 02:20</option>
+        <option value="5">02:20 - 03:20</option>
+        <option value="6">03:20 - 04:20</option>
+      </select>
+    </label>
+    <br />
+    <label>Student ID: <input type="text" id="attStudentId" /></label>
+    <label>Status:
+      <select id="attStatus">
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+      </select>
+    </label>
+    <button onclick="saveAttendance()">Save Attendance</button>
+  </div>
+
+  <div class="summary-section" id="summaryView">
+    <h3>Monthly Summary</h3>
+    <label>Month: <input type="month" id="filterMonth" onchange="generateMonthlySummary()" /></label>
+    <table id="summaryTable">
+      <thead>
+        <tr><th>Date</th><th>Hour</th><th>Status</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="percentageDisplay"></div>
+    <button onclick="exportCSV()">Export to CSV</button>
+  </div>
+
+  <script>
+    function changeRole() {
+      const role = document.getElementById('roleSelect').value;
+      document.getElementById('attendanceInput').style.display = (role === 'leader' || role === 'teacher') ? 'block' : 'none';
+      document.getElementById('summaryView').style.display = (role === 'student') ? 'block' : 'none';
+    }
+
+    function saveAttendance() {
+      const date = document.getElementById('attendanceDate').value;
+      const hour = document.getElementById('hourSelect').value;
+      const id = document.getElementById('attStudentId').value;
+      const status = document.getElementById('attStatus').value;
+      if (!date || !hour || !id) return alert('Fill all fields!');
+      const key = `attendance_${id}`;
+      let data = JSON.parse(localStorage.getItem(key)) || [];
+      data.push({ date, hour, status });
+      localStorage.setItem(key, JSON.stringify(data));
+      alert('Attendance Saved');
+    }
+
+    function loadStudentView() {
+      const id = document.getElementById('studentId').value;
+      const month = document.getElementById('filterMonth').value;
+      if (!id) return alert('Enter Student ID');
+      document.getElementById('summaryView').style.display = 'block';
+      const data = JSON.parse(localStorage.getItem(`attendance_${id}`)) || [];
+      const tbody = document.querySelector("#summaryTable tbody");
+      tbody.innerHTML = "";
+      let presentCount = 0;
+      let totalCount = 0;
+      const selectedMonth = month || new Date().toISOString().slice(0, 7);
+      data.forEach(d => {
+        if (d.date.startsWith(selectedMonth)) {
+          totalCount++;
+          if (d.status === 'Present') presentCount++;
+          tbody.innerHTML += `<tr><td>${d.date}</td><td>${d.hour}</td><td>${d.status}</td></tr>`;
+        }
+      });
+      const percent = totalCount ? ((presentCount / totalCount) * 100).toFixed(2) : 0;
+      document.getElementById('percentageDisplay').innerText = `Attendance: ${presentCount}/${totalCount} (${percent}%)`;
+    }
+
+    function generateMonthlySummary() {
+      loadStudentView();
+    }
+
+    function exportCSV() {
+      const id = document.getElementById('studentId').value;
+      const data = JSON.parse(localStorage.getItem(`attendance_${id}`)) || [];
+      let csv = "Date,Hour,Status\n";
+      data.forEach(d => csv += `${d.date},${d.hour},${d.status}\n`);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${id}_attendance.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    changeRole();
+  </script>
+</body>
+</html>
